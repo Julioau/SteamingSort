@@ -1,29 +1,23 @@
 import requests
 import csv
 
-i = 3
+with open("../Data/games.csv", "r", newline='', encoding='utf-8') as old_file, \
+    open("../Data/new_games.csv", "w", newline='', encoding='utf-8') as new_file:
 
-with open("../Data/games.csv", newline='', encoding='utf-8') as f:
-    leitor = csv.DictReader(f)
+    leitor = csv.DictReader(old_file)
+    campos = leitor.fieldnames
+    escritor = csv.DictWriter(new_file, fieldnames=campos)
+    escritor.writeheader()
     for linha in leitor:
-        linha["price_overview"] = "R$ 16,99"
-        print(list(linha.values()))
-        if i > 0: i=i-1
-        else: break
-
-"""
-
-## "http://store.steampowered.com/api/appdetails?appids=[game_id]]&cc=BR&filters=price_overview"
-url = "http://store.steampowered.com/api/appdetails?appids=20&cc=BR"
-
-response = requests.get(url)
-
-if response.status_code == 200:
-    data = response.json()
-              ##20 vai mudar dinamicamente
-    print(data)
-    ##print(data["20"]["data"]["price_overview"]["final_formatted"])
-else:
-    print("erro")
-
-"""
+        url = "http://store.steampowered.com/api/appdetails?appids="+linha["app_id"]+"&cc=BR&filters=price_overview"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()##[linha["app_id"]]["data"]["price_overview"]["final_formatted"]
+            if data[linha["app_id"]]["data"] != []:
+                data = data[linha["app_id"]]["data"]["price_overview"]["final_formatted"].replace("R$ ","")
+            else:
+                data = "\\N"
+        else:
+            data = "\\N"
+        linha["price_overview"] = data
+        escritor.writerow(linha)

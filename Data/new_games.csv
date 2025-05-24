@@ -1,0 +1,33 @@
+app_id,name,release_date,is_free,price_overview,type
+10,Counter-Strike,2000-11-01,0,"20,69",game
+20,Team Fortress Classic,1999-04-01,0,"16,99",game
+30,Day of Defeat,2003-05-01,0,"16,99",game
+40,Deathmatch Classic,2001-06-01,0,"16,99",game
+50,Half-Life: Opposing Force,1999-11-01,0,"16,99",game
+60,Ricochet,2000-11-01,0,"16,99",game
+70,Half-Life,1998-11-08,0,"20,69",game
+80,Counter-Strike: Condition Zero,2004-03-01,0,"20,69",game
+130,Half-Life: Blue Shift,2001-06-01,0,"16,99",game
+219,Half-Life 2: Demo,2004-12-01,1,\N,demo
+220,Half-Life 2,2004-11-16,0,"32,99",game
+240,Counter-Strike: Source,2004-11-01,0,"32,99",game
+280,Half-Life: Source,2004-06-01,0,"32,99",game
+300,Day of Defeat: Source,2010-07-12,0,"32,99",game
+320,Half-Life 2: Deathmatch,2004-11-01,0,\N,game
+340,Half-Life 2: Lost Coast,\N,0,\N,game
+360,Half-Life Deathmatch: Source,\N,0,"32,99",game
+380,Half-Life 2: Episode One,\N,0,\N,game
+400,Portal,2007-10-10,0,"32,99",game
+410,Portal: First Slice,2008-05-08,1,\N,demo
+420,Half-Life 2: Episode Two,2007-10-10,0,\N,game
+440,Team Fortress 2,2007-10-10,1,\N,game
+500,Left 4 Dead,2008-11-17,0,"32,99",game
+550,Left 4 Dead 2,2009-11-16,0,"32,99",game
+570,Dota 2,\N,1,\N,game
+620,Portal 2,2011-04-18,0,"32,99",game
+630,Alien Swarm,2010-07-19,1,\N,game
+730,Counter-Strike 2,\N,1,\N,game
+1002,Rag Doll Kung Fu,2005-10-12,0,"2,29",game
+1003,Rag Doll Kung Fu Demo,2005-10-12,1,\N,demo
+1200,Red Orchestra: Ostfront 41-45,2006-03-14,0,"10,89",game
+1250,Killing Floor,2009-05-14,0,"34,99",game
