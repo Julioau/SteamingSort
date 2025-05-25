@@ -13,9 +13,9 @@ with open("../Data/games.csv", "r", newline='', encoding='utf-8') as old_file, \
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()##[linha["app_id"]]["data"]["price_overview"]["final_formatted"]
-            if data[linha["app_id"]]["data"] != []:
+            try:
                 data = data[linha["app_id"]]["data"]["price_overview"]["final_formatted"].replace("R$ ","")
-            else:
+            except:
                 data = "\\N"
         else:
             data = "\\N"
