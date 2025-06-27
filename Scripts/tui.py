@@ -1,6 +1,7 @@
 import curses
 import csv
 import os
+from wcwidth import wcwidth
 
 # just for testing
 def load_data(file_path):
@@ -68,10 +69,12 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
                 formatted_price = price_raw
 
         # Use the calculated name_width for formatting the name column
-        row_data = (f"{row[0]:<{fixed_widths['app_id']}}{separator}"
-                    f"{row[1]:<{name_width}.{name_width}}{separator}"
-                    f"{row[2]:<{fixed_widths['release_date']}}{separator}"
-                    f"{formatted_price:<{fixed_widths['price']}}")
+        row_data = (
+            fit_to_display_width(row[0], fixed_widths['app_id']) + separator +
+            fit_to_display_width(row[1], name_width) + separator +
+            fit_to_display_width(row[2], fixed_widths['release_date']) + separator +
+            fit_to_display_width(formatted_price, fixed_widths['price'])
+        )
 
         if len(row_data) > max_x:
             row_data = row_data[:max_x - 1]
@@ -93,6 +96,24 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
         pass
 
     stdscr.refresh()
+
+
+def fit_to_display_width(text, max_width):
+    """Truncate text so its display width does not exceed max_width."""
+    acc = 0
+    result = ''
+    for ch in text:
+        w = wcwidth(ch)
+        if w < 0:
+            w = 0
+        if acc + w > max_width:
+            break
+        result += ch
+        acc += w
+    # Pad if needed
+    if acc < max_width:
+        result += ' ' * (max_width - acc)
+    return result
 
 
 def main(stdscr):
