@@ -31,6 +31,7 @@ class BPlusTree:
                 return node.values[i]
             return None
         else:
+            #print(i,len(node.keys))
             if key == node.keys[i]:
                 # estamos em um nó interno, mas já achamos a key.
                 # como o valor intermediário fica sempre no nodo à direita, precisamos adicionar 1 para que se dirija ao nodo correto
@@ -40,7 +41,7 @@ class BPlusTree:
             # nó interno, então desce no filho correto
             return self.search(key, node.children[i])
 
-    def insert(self, key, value_list): # insere na árvore, se existir sobrescreve 
+    def insert(self, key, value_list): # insere na árvore, se existir dá um append
         root = self.root
         if root.is_full():
             new_root = BPlusNode(self.t, leaf=False)
@@ -60,7 +61,7 @@ class BPlusTree:
             idx = i + 1
 
             if idx < len(node.keys) and node.keys[idx] == key:
-                node.values[idx] = value_list
+                node.values[idx].append(value_list)
                 return
 
             node.keys.insert(idx, key)
@@ -106,14 +107,31 @@ class BPlusTree:
             parent.children.insert(idx + 1, new_child)
 
     def print_tree(self, node= None, lvl= 0):
-        node = node or self.root
+        if node is None:
+            node = self.root
         indent = "    " * lvl
 
         if node.leaf:
-            # mostra pares (key, len(lista))
-            debug = [f"{k}:{len(v)}" for k, v in zip(node.keys, node.values)]
+            for k, v in zip(node.keys, node.values):
+                if v is list:  # mostra pares (key, len(lista)) se for uma lista de inteiros
+                    debug = [f"{k}:{len(v)}" for k, v in zip(node.keys, node.values)]
+                else: # mostra pares (key, int) se for apenas um int(value) por key 
+                    debug = [f"{k}:{v}" for k, v in zip(node.keys, node.values)]
             print(f"{indent}{debug}")
         else:
             print(f"{indent}{node.keys}")
             for child in node.children:
                 self.print_tree(child, lvl + 1)
+    
+    def transverse_tree(self, set): # itera sobre todos os valores nas folhas da árvore, do menor ao maior
+        lista = []
+        node = self.root
+        while not node.leaf:
+            node = node.children[0]
+        
+        while node is not None:
+            for value in node.values:
+                if value in set:
+                    lista.append(value)
+            node = node.next
+        return lista
