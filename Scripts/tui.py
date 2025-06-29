@@ -21,31 +21,43 @@ def load_data(file_path):
         return None, None, f"Error reading file: {e}"
 
 def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
-    """Handles drawing the entire screen efficiently with dynamic column sizing."""
     stdscr.erase()
 
-    # --- Dynamic Column Width Calculation ---
-    # Define fixed widths for columns other than 'name'
+    # Fixed widths for columns
     fixed_widths = {
         'app_id': 8,
         'release_date': 12,
         'price': 11,
+        'positive': 11,
+        'negative': 11,
+        'score': 6,
+        'total': 11,
     }
-    # Calculate space used by fixed columns and their separators (" | ")
     separator = " | "
-    used_space = sum(fixed_widths.values()) + (len(fixed_widths) * len(separator))
-    
-    # The remaining space is for the 'name' column, with a minimum width
+    used_space = (
+        fixed_widths['app_id'] +
+        fixed_widths['release_date'] +
+        fixed_widths['price'] +
+        fixed_widths['positive'] +
+        fixed_widths['negative'] +
+        fixed_widths['score'] +
+        fixed_widths['total'] +
+        7 * len(separator)
+    )
     name_width = max(10, max_x - used_space - 1)
 
     # --- Display Header ---
-    header_template = (f"{{:<{fixed_widths['app_id']}}}{separator}"
-                       f"{{:<{name_width}}}{separator}"
-                       f"{{:<{fixed_widths['release_date']}}}{separator}"
-                       f"{{:<{fixed_widths['price']}}}")
-    header_text = header_template.format('app_id', 'name', 'release_date', 'price')
-    
-    # Truncate if it's still too long for a very narrow screen
+    header_template = (
+        f"{{:<{fixed_widths['app_id']}}}{separator}"
+        f"{{:<{name_width}}}{separator}"
+        f"{{:<{fixed_widths['release_date']}}}{separator}"
+        f"{{:<{fixed_widths['price']}}}{separator}"
+        f"{{:<{fixed_widths['positive']}}}{separator}"
+        f"{{:<{fixed_widths['negative']}}}{separator}"
+        f"{{:<{fixed_widths['score']}}}{separator}"
+        f"{{:<{fixed_widths['total']}}}"
+    )
+    header_text = header_template.format('app_id', 'name', 'release_date', 'price', 'positive', 'negative', 'score', 'total')
     if len(header_text) > max_x:
         header_text = header_text[:max_x]
     stdscr.addstr(0, 0, header_text, curses.A_REVERSE)
@@ -57,7 +69,7 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
     for i, row in enumerate(rows_to_display):
         if i + 1 >= max_y - 1:
             break
-        
+
         price_raw = row[3]
         if price_raw == '\\N':
             formatted_price = ""
@@ -68,12 +80,29 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
             except (ValueError, IndexError):
                 formatted_price = price_raw
 
-        # Use the calculated name_width for formatting the name column
+        # Format release_date as yyyy/mm/dd
+        release_date = f"{row[2][:4]}/{row[2][4:6]}/{row[2][6:]}"
+
+        # Calculate score and total
+        try:
+            pos = int(row[4])
+            neg = int(row[5])
+            total = pos + neg
+            score = f"{(pos / total * 100):.1f}%" if total > 0 else "-"
+            total_str = str(total)
+        except Exception:
+            score = "-"
+            total_str = "-"
+
         row_data = (
             fit_to_display_width(row[0], fixed_widths['app_id']) + separator +
             fit_to_display_width(row[1], name_width) + separator +
-            fit_to_display_width(row[2], fixed_widths['release_date']) + separator +
-            fit_to_display_width(formatted_price, fixed_widths['price'])
+            fit_to_display_width(release_date, fixed_widths['release_date']) + separator +
+            fit_to_display_width(formatted_price, fixed_widths['price']) + separator +
+            fit_to_display_width(row[4], fixed_widths['positive']) + separator +
+            fit_to_display_width(row[5], fixed_widths['negative']) + separator +
+            fit_to_display_width(score, fixed_widths['score']) + separator +
+            fit_to_display_width(total_str, fixed_widths['total'])
         )
 
         if len(row_data) > max_x:
