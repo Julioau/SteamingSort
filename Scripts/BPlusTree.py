@@ -32,10 +32,11 @@ class BPlusTree:
             return None
         else:
             #print(i,len(node.keys))
-            if key == node.keys[i]:
+            if i < len(node.keys) and key == node.keys[i]:
                 # estamos em um nó interno, mas já achamos a key.
                 # como o valor intermediário fica sempre no nodo à direita, precisamos adicionar 1 para que se dirija ao nodo correto
                 # isso vem de como eu implementei a divisão dos filhos
+                
                 i += 1
 
             # nó interno, então desce no filho correto

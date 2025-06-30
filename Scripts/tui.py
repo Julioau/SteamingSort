@@ -2,25 +2,22 @@ import curses
 import csv
 import os
 from wcwidth import wcwidth
+import pickle
 
-# just for testing
-def load_data(file_path):
-    script_dir = os.path.dirname(__file__) if __file__ else '.'
-    absolute_path = os.path.join(script_dir, file_path)
-    
-    if not os.path.exists(absolute_path):
-        return None, None, f"Error: File not found at '{absolute_path}'"
 
-    try:
-        with open(absolute_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            header = next(reader)
-            rows = list(reader)
-            return header, rows, None
-    except Exception as e:
-        return None, None, f"Error reading file: {e}"
+def load_data(bin_path):
+    with open(bin_path, "rb") as f:
+    #   data: dict of app_id -> [name, release_date, price, positive, negative]
+        data = pickle.load(f)
+    # Convert to list of rows for TUI
+    rows = []
+    for app_id, values in data.items():
+        row = [app_id] + [str(v) for v in values]
+        rows.append(row)
+    header = ['app_id', 'name', 'release_date', 'price', 'positive', 'negative']
+    return header, rows, None
 
-def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
+def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted, sort_key):
     stdscr.erase()
 
     # Fixed widths for columns
@@ -80,9 +77,11 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
             except (ValueError, IndexError):
                 formatted_price = price_raw
 
-        # Format release_date as yyyy/mm/dd
-        release_date = f"{row[2][:4]}/{row[2][4:6]}/{row[2][6:]}"
-
+        # Format release_date as yyyy/mm/dd and check for our invalid format
+        if len(row[2]) == 8:
+            release_date = f"{row[2][:4]}/{row[2][4:6]}/{row[2][6:]}"
+        else:
+            release_date = ""
         # Calculate score and total
         try:
             pos = int(row[4])
@@ -114,13 +113,47 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
             pass
 
     # --- Display Footer/Status Bar ---
-    sort_order = "Desc" if is_inverted else "Asc"
-    status_text = f"Rows {scroll_pos+1}-{scroll_pos+len(rows_to_display)} of {len(rows)} | [i] Invert ({sort_order}) | [q/esc] Quit"
-    if len(status_text) > max_x:
-        status_text = status_text[:max_x-1]
-    
+    sort_order = "DESCENDING" if is_inverted else "ASCENDING"
+
+    sort_keys = {
+        'a': 'AppID',
+        'n': 'Name',
+        'p': 'Price',
+        'd': 'Date',
+        's': 'Score'
+    }
+    key_display = []
+    for k, label in sort_keys.items():
+        if (
+            (k == 'a' and sort_key == 'app_id') or
+            (k == 'n' and sort_key == 'name') or
+            (k == 'p' and sort_key == 'price') or
+            (k == 'd' and sort_key == 'release_date') or
+            (k == 's' and sort_key == 'score')
+        ):
+            key_display.append(f"[{label.upper()}]")
+        else:
+            key_display.append(f"{label}")
+
+    left_text = (
+        f"Rows {scroll_pos+1}-{scroll_pos+len(rows)} of {len(rows)} | "
+        f"Sort: {' '.join(key_display)} | Invert ({sort_order})"
+    )
+    right_text = "[q/esc] Quit"
+
+    # Calculate padding
+    total_length = len(left_text) + len(right_text)
+    if total_length < max_x:
+        padding = " " * (max_x - total_length - 1)
+    else:
+        # In the edge case that the terminal is too small
+        left_text = left_text[:max_x - len(right_text) - 1]
+        padding = ""
+
+    status_text = f"{left_text}{padding}{right_text}"
+
     try:
-        stdscr.addstr(max_y - 1, 0, status_text)
+        stdscr.addstr(max_y - 1, 0, status_text, curses.A_REVERSE)
     except curses.error:
         pass
 
@@ -128,7 +161,7 @@ def draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted):
 
 
 def fit_to_display_width(text, max_width):
-    """Truncate text so its display width does not exceed max_width."""
+    # In the edge case that the terminal is too small
     acc = 0
     result = ''
     for ch in text:
@@ -145,30 +178,33 @@ def fit_to_display_width(text, max_width):
     return result
 
 
-def main(stdscr):
+def sort_rows(rows, sort_key, is_inverted):
+    if sort_key == 'app_id':
+        return rows  # The data is already sorted by app_id, we do nothing.
+    key_map = {
+        'name': 1,
+        'price': 3,
+        'release_date': 2,
+        'score': lambda row: (int(row[4]) / (int(row[4]) + int(row[5]))) if (row[4].isdigit() and row[5].isdigit() and int(row[4]) + int(row[5]) > 0) else 0,
+    }
+    key_func = key_map.get(sort_key, 1)
+    return sorted(rows, key=key_func if callable(key_func) else lambda row: row[key_func], reverse=is_inverted)
+
+def main(stdscr, header, rows):
     """Main function to run the TUI event loop."""
     curses.curs_set(0)
     curses.start_color()
     curses.use_default_colors()
     stdscr.nodelay(True)
     
-    header, rows, error = load_data('../Data/games.csv')
-
-    if error:
-        stdscr.clear()
-        stdscr.addstr(0, 0, error)
-        stdscr.addstr(2, 0, "Press any key to exit.")
-        stdscr.nodelay(False)
-        stdscr.getch()
-        return
-
     scroll_pos = 0
     is_inverted = False
+    sort_key = 'app_id'
+    sorted_rows = sort_rows(rows, sort_key, is_inverted)
 
-    # Initial draw
     try:
         max_y, max_x = stdscr.getmaxyx()
-        draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted)
+        draw_tui(stdscr, scroll_pos, sorted_rows, header, max_y, max_x, is_inverted, sort_key)
     except curses.error:
         pass
 
@@ -176,33 +212,55 @@ def main(stdscr):
         key = stdscr.getch()
 
         if key != -1:
-            # Check for resize event first
             if key == curses.KEY_RESIZE:
-                # Let the loop handle the redraw with new dimensions
                 pass
             elif key == ord('q') or key == 27:
                 break
             elif key == ord('i'):
                 is_inverted = not is_inverted
-                rows.reverse()
+                sorted_rows = sort_rows(rows, sort_key, is_inverted)
                 scroll_pos = 0
-            elif key in [curses.KEY_DOWN, ord('j'), ord('s')]:
+            elif key == ord('a'):
+                sort_key = 'app_id'
+                sorted_rows = sort_rows(rows, sort_key, is_inverted)
+                scroll_pos = 0
+            elif key == ord('d'):
+                sort_key = 'release_date'
+                sorted_rows = sort_rows(rows, sort_key, is_inverted)
+                scroll_pos = 0
+            elif key == ord('n'):
+                sort_key = 'name'
+                sorted_rows = sort_rows(rows, sort_key, is_inverted)
+                scroll_pos = 0
+            elif key == ord('p'):
+                sort_key = 'price'
+                sorted_rows = sort_rows(rows, sort_key, is_inverted)
+                scroll_pos = 0
+            elif key == ord('s'):
+                sort_key = 'score'
+                sorted_rows = sort_rows(rows, sort_key, is_inverted)
+                scroll_pos = 0
+            elif key in [curses.KEY_DOWN, ord('j')]:
                 max_y, _ = stdscr.getmaxyx()
                 displayable_rows = max(1, max_y - 2)
-                if scroll_pos < len(rows) - displayable_rows:
+                if scroll_pos < len(sorted_rows) - displayable_rows:
                     scroll_pos += 1
-            elif key in [curses.KEY_UP, ord('k'), ord('w')]:
+            elif key in [curses.KEY_UP, ord('k')]:
                 if scroll_pos > 0:
                     scroll_pos -= 1
-            
-            # Redraw on any action
+
             try:
                 max_y, max_x = stdscr.getmaxyx()
-                draw_tui(stdscr, scroll_pos, rows, header, max_y, max_x, is_inverted)
+                draw_tui(stdscr, scroll_pos, sorted_rows, header, max_y, max_x, is_inverted, sort_key)
             except curses.error:
                 pass
-        
+
         curses.napms(10)
+
+
+def filter_rows_by_app_ids(rows, app_ids):
+    app_ids_set = set(str(a) for a in app_ids)
+    return [row for row in rows if row[0] in app_ids_set]
 
 
 if __name__ == "__main__":
