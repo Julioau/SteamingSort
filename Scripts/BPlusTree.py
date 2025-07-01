@@ -124,15 +124,22 @@ class BPlusTree:
             for child in node.children:
                 self.print_tree(child, lvl + 1)
     
-    def transverse_tree(self, set): # itera sobre todos os valores nas folhas da árvore, do menor ao maior
-        lista = []
+    def transverse_tree(self, app_id_set):
+        ordered_ids = []
         node = self.root
         while not node.leaf:
             node = node.children[0]
         
         while node is not None:
             for value in node.values:
-                if value in set:
-                    lista.append(value)
+                # The value can be a list of IDs or a single ID.
+                # We need to handle both cases to avoid a TypeError.
+                if isinstance(value, list):
+                    for app_id in value:
+                        if app_id in app_id_set:
+                            ordered_ids.append(app_id)
+                elif isinstance(value, int):
+                    if value in app_id_set:
+                        ordered_ids.append(value)
             node = node.next
-        return lista
+        return ordered_ids
