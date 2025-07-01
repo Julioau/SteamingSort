@@ -132,8 +132,8 @@ class BPlusTree:
         
         while node is not None:
             for value in node.values:
-                # The value can be a list of IDs or a single ID.
-                # We need to handle both cases to avoid a TypeError.
+                # como o valor pode ser tanto uma lista quanto um único valor
+                # devemos considerar ambos os casos
                 if isinstance(value, list):
                     for app_id in value:
                         if app_id in app_id_set:

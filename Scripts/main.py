@@ -5,13 +5,13 @@ import os
 from tui import main as tui_main
 from BPlusTree import BPlusTree, BPlusNode
 from collections import defaultdict
-from PatriciaTree import SuffixTree # Import the SuffixTree class
+from PatriciaTree import SuffixTree
 
-# Define the path for the serialized SuffixTree
-SUFFIX_TREE_PATH = os.path.join(os.path.dirname(__file__), '..', 'Data', 'patricia.bin')
+# We only load the csv in case we need to rebuild the tree
 CSV_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 'Data', 'games.csv')
 
-# Construct absolute paths for all binary data files
+# We were using hard coded relative paths before, this made the code not run when being called from different folders.
+# This is an ugly fix, but at least now it works from anywhere, which is not required, but good.
 DATA_DIR = os.path.join(os.path.dirname(__file__), '..', 'Data')
 GAMES_BIN_PATH = os.path.join(DATA_DIR, 'games.bin')
 CATEGORIES_BIN_PATH = os.path.join(DATA_DIR, 'categories.bin')
@@ -20,6 +20,22 @@ NAMETREE_BIN_PATH = os.path.join(DATA_DIR, 'nametree.bin')
 PRICETREE_BIN_PATH = os.path.join(DATA_DIR, 'pricetree.bin')
 RELEASETREE_BIN_PATH = os.path.join(DATA_DIR, 'releasetree.bin')
 REVIEWTREE_BIN_PATH = os.path.join(DATA_DIR, 'reviewtree.bin')
+PATRICIA_PATH = os.path.join(os.path.dirname(__file__), '..', 'Data', 'patricia.bin')
+
+def display_menu(bad_option, no_results, last_input, last_search, BLINK, BLUE, RED, RESET):
+    os.system('cls' if os.name == 'nt' else 'clear') # Clear screen before displaying menu
+    if bad_option:
+        print(f"{BLUE}Invalid option '{last_input}', please try again.{RESET}")
+    if no_results:
+        print(f"{BLUE}That search for '{last_search}' yielded no results {RESET}or {RED}your input was invalid.{RESET}")
+    print(f"""
+{BLUE}█▀▀ ▀█▀ █▀▀ █▀█ █▄█{RESET}{BLINK} ▀█▀ █▀█ █▀▀{RESET}{BLUE}   █▀▀ █▀█ █▀▄ ▀█▀
+▀▀█  █  █▀▀ █▀█ █ █{RESET}{BLINK}  █  █ █ █ █{RESET}{BLUE}   ▀▀█ █ █ █▀▄  █ 
+▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀ ▀{RESET}{BLINK} ▀▀▀ ▀ ▀ ▀▀▀{RESET}{BLUE}   ▀▀█ ▀▀▀ ▀ ▀  ▀{RESET}
+""")
+    print(f"""Press {RED}q{RESET} to quit at any time.
+Search by: [{BLUE}1{RESET}] app_id, [{BLUE}2{RESET}] name, [{BLUE}3{RESET}] categories, [{BLUE}4{RESET}] tags
+Enter choice: """, end="")
 
 # Returns a single app_id if it exists in games_data
 def search_by_app_id(app_id, games_data):
@@ -63,40 +79,54 @@ def main():
     RED   = "\033[31m"
     RESET = "\033[0m"
 
-    # Load main data and trees once
-    with open(GAMES_BIN_PATH, 'rb') as f:
-        games_data = pickle.load(f)
-    with open(CATEGORIES_BIN_PATH, 'rb') as f:
-        categories_tree = pickle.load(f)
-    with open(TAGS_BIN_PATH, 'rb') as f:
-        tags_tree = pickle.load(f)
-    with open(NAMETREE_BIN_PATH, 'rb') as f:
-        name_tree = pickle.load(f)
-    with open(PRICETREE_BIN_PATH, 'rb') as f:
-        price_tree = pickle.load(f)
-    with open(RELEASETREE_BIN_PATH, 'rb') as f:
-        release_tree = pickle.load(f)
-    with open(REVIEWTREE_BIN_PATH, 'rb') as f:
-        review_tree = pickle.load(f)
+    # Display menu immediately
+    display_menu(False, False, "", "", BLINK, BLUE, RED, RESET)
+    print(f"{BLUE}Loading data...{RESET}")
 
-    # Load or build the SuffixTree
+    # Load main data and trees once
+    games_data = None
+    categories_tree = None
+    tags_tree = None
+    name_tree = None
+    price_tree = None
+    release_tree = None
+    review_tree = None
     patricia = None
+
     try:
-        # Loading
-        patricia = SuffixTree.load_tree(SUFFIX_TREE_PATH)
-        # Building
-    except FileNotFoundError:
-        print("Suffix Tree not found. Building from CSV... (This may take a while)")
-        patricia = SuffixTree.build_from_csv(CSV_FILE_PATH)
-        print("Saving Suffix Tree...")
-        patricia.save_tree(SUFFIX_TREE_PATH)
-        print("Suffix Tree saved.")
+        with open(GAMES_BIN_PATH, 'rb') as f:
+            games_data = pickle.load(f)
+        with open(CATEGORIES_BIN_PATH, 'rb') as f:
+            categories_tree = pickle.load(f)
+        with open(TAGS_BIN_PATH, 'rb') as f:
+            tags_tree = pickle.load(f)
+        with open(NAMETREE_BIN_PATH, 'rb') as f:
+            name_tree = pickle.load(f)
+        with open(PRICETREE_BIN_PATH, 'rb') as f:
+            price_tree = pickle.load(f)
+        with open(RELEASETREE_BIN_PATH, 'rb') as f:
+            release_tree = pickle.load(f)
+        with open(REVIEWTREE_BIN_PATH, 'rb') as f:
+            review_tree = pickle.load(f)
+
+        # Load or build the SuffixTree
+        try:
+            # Load
+            patricia = SuffixTree.load_tree(PATRICIA_PATH)
+        except FileNotFoundError:
+            # Build
+            patricia = SuffixTree.build_from_csv(CSV_FILE_PATH)
+            patricia.save_tree(PATRICIA_PATH)
+        except Exception as e:
+            patricia = SuffixTree.build_from_csv(CSV_FILE_PATH)
+            patricia.save_tree(PATRICIA_PATH)
+
+    except FileNotFoundError as e:
+        print(f"{RED}Error: Required data file not found: {e.filename}. Please ensure all .bin files are in the Data directory.{RESET}")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error loading Suffix Tree: {e}. Building from CSV instead...")
-        patricia = SuffixTree.build_from_csv(CSV_FILE_PATH)
-        print("Saving Suffix Tree...")
-        patricia.save_tree(SUFFIX_TREE_PATH)
-        print("Suffix Tree saved.")
+        print(f"{RED}An unexpected error occurred during data loading: {e}{RESET}")
+        sys.exit(1)
 
     trees = {
         'categories': categories_tree,
@@ -112,21 +142,7 @@ def main():
     last_search = ""
 
     while True:
-        os.system('cls' if os.name == 'nt' else 'clear') # in case curses is ever officially supported on windows, the program is essentially cross-platform
-        if bad_option:
-            print(f"{BLUE}Invalid option '{last_input}', please try again.{RESET}")
-            bad_option = False
-        if no_results:
-            print(f"{BLUE}That search for '{last_search}' yielded no results {RESET}or {RED}your input was invalid.{RESET}")
-            no_results = False
-        print(f"""
-{BLUE}█▀▀ ▀█▀ █▀▀ █▀█ █▄█{RESET}{BLINK} ▀█▀ █▀█ █▀▀{RESET}{BLUE}   █▀▀ █▀█ █▀▄ ▀█▀
-▀▀█  █  █▀▀ █▀█ █ █{RESET}{BLINK}  █  █ █ █ █{RESET}{BLUE}   ▀▀█ █ █ █▀▄  █ 
-▀▀▀  ▀  ▀▀▀ ▀ ▀ ▀ ▀{RESET}{BLINK} ▀▀▀ ▀ ▀ ▀▀▀{RESET}{BLUE}   ▀▀█ ▀▀▀ ▀ ▀  ▀{RESET}
-""")
-        print(f"""Press {RED}q{RESET} to quit at any time.
-Search by: [{BLUE}1{RESET}] app_id, [{BLUE}2{RESET}] name, [{BLUE}3{RESET}] categories, [{BLUE}4{RESET}] tags
-Enter choice: """, end="")
+        display_menu(bad_option, no_results, last_input, last_search, BLINK, BLUE, RED, RESET)
 
         choice = input().strip()
         last_input = choice

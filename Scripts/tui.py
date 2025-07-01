@@ -181,7 +181,7 @@ def sort_rows(app_ids, sort_key, is_inverted, trees):
         'name': trees['name'],
         'price': trees['price'],
         'release_date': trees['release'],
-        'score': trees['review']  # Note: This sorts by review count, not score %
+        'score': trees['review'] 
     }
 
     if sort_key in tree_map:
